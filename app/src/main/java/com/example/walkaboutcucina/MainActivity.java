@@ -3,6 +3,8 @@ package com.example.walkaboutcucina;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.StrictMode;
@@ -13,19 +15,27 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 public class MainActivity extends AppCompatActivity {
 
     //contenuti grafici
-    private TextView listaGruppi;
-
+    public TextView listaGruppi;
 
     //conessione al server
-    private static final String SERVER_IP = "192.168.1.10";
-    private static final int SERVER_PORT = 151;
+    private final String SERVER_IP = "172.24.64.1";
+    private final int SERVER_PORT = 151;
+
+
+    //componenti
+    private Button bottoneEliminazione;
+    private Button bottoneInvioDati;
 
 
 
@@ -39,19 +49,30 @@ public class MainActivity extends AppCompatActivity {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
 
-        GetDataFromServer getDataThread = new GetDataFromServer();
-        getDataThread.start();
 
 
-        Button bottoneInvioDati = findViewById(R.id.bottoneRichiestadati);
+
+        //bottone invio dati
+        bottoneInvioDati = findViewById(R.id.bottoneRichiestadati);
         bottoneInvioDati.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-                GetDataFromServer getDataThread = new GetDataFromServer();
-                getDataThread.start();
+                getData();
 
                 Toast.makeText(MainActivity.this, "Aggiornamento dati...", Toast.LENGTH_SHORT).show();
+
+            }
+        });
+
+
+        //bottone richiesta eliminazione
+        bottoneEliminazione = findViewById(R.id.bottoneEliminazione);
+        bottoneEliminazione.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                confermaDialog();
 
             }
         });
@@ -59,72 +80,104 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    //classe che riceve e mostra i dati ricevuti dal server
-    protected class GetDataFromServer extends Thread {
 
-        public GetDataFromServer(){
+    //apre un menù di conferma di eliminazione dati del server
+    private void confermaDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Conferma");
+        builder.setMessage("Accettando eliminerai tutti i dati che le guide hanno mandato oggi, una volta fatto non saranno più recuperabili.");
+        builder.setPositiveButton("Sì", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
 
+                richiestaEliminazione();
 
-        }//costruttore
-
-        @Override
-        public void run(){
-
-            getData();
-
-        }
-
-
-        //richiede al server se ci sono nuovi dati
-        @SuppressLint("SetTextI18n")
-        protected void getData() {
-
-            try (
-                    Socket socket = new Socket(SERVER_IP, SERVER_PORT);
-                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))
-            ) {
-
-
-                String response = in.readLine();
-
-                if(response == null){
-
-                    listaGruppi.setText("Errore di connessione al server");
-                    return;
-
-                }//if
-
-                listaGruppi.setText(sostituisciCarattere(response,'#','\n'));
-
-                return;
-
-            } catch (IOException e) {
-
-                listaGruppi.setText("Impossibile ottenere i dati");
-
+                dialog.dismiss(); // Chiude il dialog
             }
-
-            listaGruppi.setText("Errore di connessione al server");
-
-
-        }
-
-
-        //riporta la stringa al formato scelto di visualizzazione
-        public String sostituisciCarattere(String input, char daSostituire, char daInserire) {
-            char[] chars = input.toCharArray();
-            for (int i = 0; i < chars.length; i++) {
-                if (chars[i] == daSostituire) {
-                    chars[i] = daInserire;
-                }
+        });
+        builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss(); // Chiude il dialog
             }
-            return new String(chars);
-        }
-
+        });
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
 
 
 
-}
 
+
+
+    //riporta la stringa al formato scelto di visualizzazione
+    public String sostituisciCarattere(String input, char daSostituire, char daInserire) {
+        char[] chars = input.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            if (chars[i] == daSostituire) {
+                chars[i] = daInserire;
+            }
+        }
+        return new String(chars);
+    }
+
+
+
+    //richiede al server se ci sono nuovi dati
+    protected void getData(){
+
+        try (
+                Socket socket = new Socket(SERVER_IP, SERVER_PORT);
+                DataInputStream dis = new DataInputStream(socket.getInputStream());
+                DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        ) {
+
+            dos.writeUTF("info");
+
+            String response = dis.readUTF();
+
+            if(response == null){
+
+                listaGruppi.setText("Errore di connessione al server");
+                return;
+
+            }//if
+
+            socket.close();
+
+            listaGruppi.setText(sostituisciCarattere(response,'#','\n'));
+
+            return;
+
+        } catch (IOException e) {
+
+            listaGruppi.setText("Impossibile ottenere i dati");
+
+        }
+
+        listaGruppi.setText("Errore di connessione al server");
+
+
+    }
+
+
+    //richiede l'eliminazione di tutti i dati delle guide dal server
+    void richiestaEliminazione(){
+
+        try(Socket server = new Socket(SERVER_IP,SERVER_PORT);
+            DataOutputStream dos = new DataOutputStream(server.getOutputStream());
+        ) {
+
+            dos.writeUTF("del");
+
+        }catch(IOException ignored){
+
+
+        }
+
+
+    }
+
+
+}

@@ -67,8 +67,8 @@
 
         <TextView
             android:id="@+id/infoGruppi"
-            android:layout_width="365dp"
-            android:layout_height="517dp"
+            android:layout_width="wrap_content"
+            android:layout_height="444dp"
             android:layout_alignParentStart="true"
             android:layout_alignParentEnd="true"
             android:layout_marginStart="20dp"
@@ -78,7 +78,16 @@
             android:textSize="20sp" />
 
 
-
+        <Button
+            android:id="@+id/bottoneEliminazione"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="650dp"
+            android:foregroundGravity="center_vertical"
+            android:text="Elimina i dati dei gruppi"
+            android:textAlignment="center"
+            android:textStyle="normal" />
 
 
     </RelativeLayout>
